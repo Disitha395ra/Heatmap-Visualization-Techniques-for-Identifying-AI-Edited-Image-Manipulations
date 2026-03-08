@@ -1,0 +1,11 @@
+dataset/
+data/
+*.csv
+*.zip
+*.parquet
+*.h5
+*.pt
+*.pth
+dataset
+CASIA2
+CASIA2/

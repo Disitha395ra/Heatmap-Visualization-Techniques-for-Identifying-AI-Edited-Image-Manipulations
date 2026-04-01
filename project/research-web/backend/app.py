@@ -1,9 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
-import os
 import base64
-from io import BytesIO
 
 from utils import preprocess_image
 from model import predict_image, generate_heatmap
@@ -11,12 +9,9 @@ from model import predict_image, generate_heatmap
 app = Flask(__name__)
 CORS(app)
 
-UPLOAD_FOLDER = "uploads"
-OUTPUT_FOLDER = "outputs"
-
 @app.route("/")
 def home():
-    return "Flask Backend Running ✅"
+    return "Backend Running ✅"
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -25,32 +20,27 @@ def predict():
 
     file = request.files["file"]
 
-    # Save uploaded image
-    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(filepath)
+    # Load image
+    image = Image.open(file.stream)
 
-    # Open image
-    image = Image.open(filepath)
+    # 🔹 Preprocess
+    tensor = preprocess_image(image)
 
-    # 🔹 STEP 1: Preprocess
-    processed = preprocess_image(image)
+    # 🔹 Prediction
+    result, confidence = predict_image(tensor)
 
-    # 🔹 STEP 2: Model Prediction
-    result, confidence = predict_image(processed)
+    # 🔥 SAME tensor used for Grad-CAM
+    heatmap_path = generate_heatmap(tensor)
 
-    # 🔹 STEP 3: Heatmap
-    heatmap_path = generate_heatmap(filepath)
-
-    # Convert heatmap to base64 (send to React)
-    with open(heatmap_path, "rb") as img_file:
-        base64_string = base64.b64encode(img_file.read()).decode("utf-8")
+    # Convert to base64
+    with open(heatmap_path, "rb") as f:
+        base64_img = base64.b64encode(f.read()).decode("utf-8")
 
     return jsonify({
         "prediction": result,
         "confidence": confidence,
-        "heatmap": base64_string
+        "heatmap": base64_img
     })
-
 
 if __name__ == "__main__":
     app.run(debug=True)

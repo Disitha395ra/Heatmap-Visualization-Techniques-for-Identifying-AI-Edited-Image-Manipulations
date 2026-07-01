@@ -18,10 +18,15 @@ def predict():
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
+    import io
+    from PIL import ImageOps
+
     file = request.files["file"]
 
-    # Load image
-    image = Image.open(file.stream)
+    # Load image and perfectly handle EXIF rotation for smartphone photos
+    file_bytes = file.read()
+    image = Image.open(io.BytesIO(file_bytes))
+    image = ImageOps.exif_transpose(image)
 
     # 🔹 Preprocess
     tensor = preprocess_image(image)
@@ -29,8 +34,8 @@ def predict():
     # 🔹 Prediction
     result, confidence = predict_image(tensor)
 
-    # 🔥 SAME tensor used for Grad-CAM
-    heatmap_path = generate_heatmap(tensor)
+    # 🔥 Passed original image for resizing CAM to original dimensions
+    heatmap_path = generate_heatmap(tensor, image)
 
     # Convert to base64
     with open(heatmap_path, "rb") as f:
